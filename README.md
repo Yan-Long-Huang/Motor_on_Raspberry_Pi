@@ -1,5 +1,5 @@
 # Servo Motor on Raspberry_Pi  
-## <font color="#00FF00">Just test to learn it</font>  
+## >Just test to learn it
 
 ## Hardware  
 * Raspberry Pi 4 4GB RAM  
