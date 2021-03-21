@@ -1,5 +1,5 @@
 # Servo Motor on Raspberry_Pi  
-## >Just test to learn it
+## Just test to learn it
 
 ## Hardware  
 * Raspberry Pi 4 4GB RAM  
