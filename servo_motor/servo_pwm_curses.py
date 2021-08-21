@@ -15,7 +15,7 @@ class Servo:
         self.__channel = channel
         self.__pulse_min = pulse_min
         self.__pulse_max = pulse_max
-        if reverse==False:
+        if reverse == False:
             self.__angle_min = angle_min
             self.__angle_max = angle_max
         else:
@@ -34,8 +34,8 @@ class Servo:
 
     def set_pulse(self, pulse = 'no-change'): # set_pulse(none) -> current angle
         if pulse != 'no-change':
-           self.__pulse = pulse
-        self.__pwm.set_pwm(self.__channel, 0, self.__pulse)
+            self.__pulse = int(pulse)
+            self.__pwm.set_pwm(self.__channel, 0, self.__pulse)
         return (self.__pulse - self.__pulse_min) * (self.__angle_max - self.__angle_min) / (self.__pulse_max - self.__pulse_min) + self.__angle_min
 
     def pwm_off(self):
@@ -131,11 +131,11 @@ def print_all():
 """ main """
 # define Servo0
 channel=0
-pulse_min=50
-pulse_max=700
+pulse_min=146
+pulse_max=666
 angle_min=0
 angle_max=180
-reverse=True
+reverse=False
 
 servo=Servo(channel,pulse_min,pulse_max,angle_min,angle_max,reverse)
 
@@ -159,8 +159,8 @@ def limit(pulse, min, max ):
 
 try:
     keycode=0
-    servo_pulse=servo.set_angle(90)
-
+    servo_pulse=(pulse_min + pulse_max)/2
+    
     # Loop where k is the last character pressed
     while (keycode != ord('q') and keycode!= ord('\t')):
         servo_pulse = limit(servo_pulse,pulse_min,pulse_max)
@@ -187,7 +187,7 @@ try:
         elif min_key.get(keycode)!=None:
             servo_pulse-=10
         elif func_key.get(keycode)!=None:
-            servo_pulse=90
+            servo_pulse=(pulse_min + pulse_max)/2
 
 except KeyboardInterrupt:
     pass
