@@ -5,122 +5,197 @@ import time
 import Adafruit_PCA9685
 import sys,os
 import curses
+import getch
 
-def draw_menu(stdscr):
-    class Servo:
-        def __init__(self,channel,min=150,max=600,freq=60):
-            self.pwm = Adafruit_PCA9685.PCA9685()
-            self.pwm.set_pwm_freq(freq)
-            self.channel = channel
-            self.min=min
-            self.max=max
+""" Servo Motor """
+class Servo:
+    def __init__(self,channel,pulse_min=150,pulse_max=600,angle_min=0,angle_max=180,reverse=False,freq=60):
+        self.__pwm = Adafruit_PCA9685.PCA9685()
+        self.__pwm.set_pwm_freq(freq)
+        self.__channel = channel
+        self.__pulse_min = pulse_min
+        self.__pulse_max = pulse_max
+        if reverse==False:
+            self.__angle_min = angle_min
+            self.__angle_max = angle_max
+        else:
+            self.__angle_min = angle_max
+            self.__angle_max = angle_min
 
-        def set_angle(self,angle):
-            pulse = int((angle - 0) * (self.max - self.min) / (180 - 0) + self.min)
-            self.pwm.set_pwm(self.channel, 0, pulse)
-            return pulse
+        self.__pulse = 0
 
-    channel = 0
-    servo = Servo(channel,100,640) # YF-6125MG 180° servo motor.
-    angle = 0
+    def set_angle(self,angle = 'no-change'): # set_angle(none) -> current pulse
+        if angle != 'no-change':
+            if angle < self.__angle_min: angle = self.__angle_min
+            elif angle > self.__angle_max: angle = self.__angle_max
+            self.__pulse = int((angle - self.__angle_min) * (self.__pulse_max - self.__pulse_min) / (self.__angle_max - self.__angle_min) + self.__pulse_min)
+            self.__pwm.set_pwm(self.__channel, 0, self.__pulse)
+        return self.__pulse
+
+    def set_pulse(self, pulse = 'no-change'): # set_pulse(none) -> current angle
+        if pulse != 'no-change':
+           self.__pulse = pulse
+        self.__pwm.set_pwm(self.__channel, 0, self.__pulse)
+        return (self.__pulse - self.__pulse_min) * (self.__angle_max - self.__angle_min) / (self.__pulse_max - self.__pulse_min) + self.__angle_min
+
+    def pwm_off(self):
+        self.__pwm.set_pwm(self.__channel, 0, 0)
+
+    def lesion(self): # KILL SERVO
+        self.set_angle(0)
+        time.sleep(2)
+        self.set_angle(150)
+        time.sleep(2)
+        self.set_angle(0)
+        time.sleep(0.5)
+        self.pwm_off()
 
 
-    k = 0
-    cursor_x = 0
-    cursor_y = 0
+""" Consol Window """
+stdscr = curses.initscr()
 
-    # Clear and refresh the screen for a blank canvas
+# Clear and refresh the screen for a blank canvas
+stdscr.clear()
+stdscr.refresh()
+
+# Start colors in curses
+curses.start_color()
+curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
+curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_RED)
+curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
+
+# Text View
+class TextView:
+    def __init__(self,x_offset=0,y_offset=0,text=""):
+        self.__x_offset=x_offset
+        self.__y_offset=y_offset
+        self.__text=text
+    
+    def print_txv(self,message=""): # Make a function to print a line in the center of screen
+        # stdscr.refresh()
+        if message!= "":
+            self.__text = message
+
+        num_rows, num_cols = stdscr.getmaxyx()
+
+        x_position = int(num_cols / 2) - int(len(self.__text) / 2) + self.__x_offset # middle_column - half_length_of_message
+        if x_position < 0: x_position = 0
+        elif x_position > num_cols: x_position = num_cols - int(len(self.__text))-1
+
+        y_position = int(num_rows / 2) - self.__y_offset # middle_row + self.__y_offset
+        if y_position < 0: y_position = 0
+        elif y_position > num_rows: y_position = num_rows-1
+
+        # Draw the text
+        stdscr.addstr(y_position, x_position, self.__text)
+        stdscr.move(num_rows-1, num_cols-1) # stdscr.move(0, 0)
+
+def print_tittle():
+    tittle=TextView(0,3," PCA9685 One Servo Test ")
+    separator=TextView(0,2,"Press ↑,↓,←,→,W,A,S,D and Space to Control Servo Motor.")
+    stdscr.attron(curses.color_pair(2))
+    tittle.print_txv()
+    stdscr.attroff(curses.color_pair(2))
+    separator.print_txv()
+
+def print_servo_status():
+    x_offset = 0
+    stdscr.attron(curses.color_pair(1))
+    servo_txv=TextView(x_offset,0,"channel:{:>2}".format(channel))
+    servo_txv.print_txv()
+    stdscr.attroff(curses.color_pair(1))
+    angle_txv=TextView(x_offset,-1,"angle= {:>3}".format(servo.set_pulse()))
+    angle_txv.print_txv()
+    pulse_txv=TextView(x_offset,-2,"pulse= {:>3}".format(servo.set_angle()))
+    pulse_txv.print_txv()
+
+def print_satatus_bar():
+    statusbar=TextView(-9999,-9999)
+    num_rows, num_cols = stdscr.getmaxyx()
+    stdscr.attron(curses.color_pair(3))
+    str = "Press 'q' or Tab to exit | Console Window [{}×{}]".format(num_cols, num_rows)
+    statusbar.print_txv(str+ " " * (num_cols - len(str) - 1))
+    stdscr.attroff(curses.color_pair(3))
+
+def print_all():
     stdscr.clear()
+    print_tittle()
+
+    print_servo_status()
+
+    print_satatus_bar()
     stdscr.refresh()
 
-    # Start colors in curses
-    curses.start_color()
-    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_RED, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
+
+
+""" main """
+# define Servo0
+channel=0
+pulse_min=50
+pulse_max=700
+angle_min=0
+angle_max=180
+reverse=True
+
+servo=Servo(channel,pulse_min,pulse_max,angle_min,angle_max,reverse)
+
+KEY_UP = 65
+KEY_DOWN = 66
+KEY_LEFT = 68
+KEY_RIGHT = 67
+max_key={ord('W'):0,ord('w'):0}
+inc_key={ord('D'):0,ord('d'):0}
+dec_key={ord('A'):0,ord('a'):0}
+min_key={ord('S'):0,ord('s'):0}
+func_key={ord(' '):0}
+
+def limit(pulse, min, max ):
+    if pulse >= min and pulse <= max:
+        return pulse
+    elif pulse < min:
+        return min
+    elif pulse > max:
+        return max
+
+try:
+    keycode=0
+    servo_pulse=servo.set_angle(90)
 
     # Loop where k is the last character pressed
-    while (k != ord('q')):
+    while (keycode != ord('q') and keycode!= ord('\t')):
+        servo_pulse = limit(servo_pulse,pulse_min,pulse_max)
+        servo.set_pulse(servo_pulse)
+        print_all()
 
-        # Initialization
-        stdscr.clear()
-        height, width = stdscr.getmaxyx()
+        keycode = ord(getch.getch()) 
+        if keycode == 27  and ord(getch.getch()) == 91:
+            keycode = ord(getch.getch())
+            if keycode == KEY_UP:
+                servo_pulse+=10
+            elif keycode == KEY_DOWN:
+                servo_pulse-=10
+            elif keycode == KEY_LEFT:
+                servo_pulse-=1
+            elif keycode == KEY_RIGHT:
+                servo_pulse+=1
+        elif max_key.get(keycode)!=None:
+            servo_pulse+=10
+        elif inc_key.get(keycode)!=None:
+            servo_pulse+=1
+        elif dec_key.get(keycode)!=None:
+            servo_pulse-=1
+        elif min_key.get(keycode)!=None:
+            servo_pulse-=10
+        elif func_key.get(keycode)!=None:
+            servo_pulse=90
 
-        if k == curses.KEY_UP:
-            angle = 180
-        elif k == curses.KEY_DOWN or k == ord(' ') or k == ord('Z') or k == ord('z') or k == ord('K') or k == ord('k'):
-            angle = 0
-        elif k == curses.KEY_LEFT:
-            angle -= 1
-        elif k == curses.KEY_RIGHT:
-            angle += 1
-        elif k == ord('J') or k == ord('j'):
-            angle -= 5
-        elif k == ord('L') or k == ord('l'):
-            angle += 5
-        elif k == ord('X') or k == ord('x'):
-            angle = 70
-        if angle < 0:angle=0
-        if angle > 180:angle=180
+except KeyboardInterrupt:
+    pass
 
-        pulse = servo.set_angle(angle)
-
-
-        cursor_x = max(0, cursor_x)
-        cursor_x = min(width-1, cursor_x)
-
-        cursor_y = max(0, cursor_y)
-        cursor_y = min(height-1, cursor_y)
-
-        # Declaration of strings
-        title = "PCA9685 Servo Test"[:width-1]
-        subtitle = "Press ↑,↓,←,→,X,Z and Space to Control Servo Motor."[:width-1]
-        keystr = "angle= {} (pulse:{})".format(angle,pulse)[:width-1]
-        statusbarstr = "Press 'q' to exit | Console Window [{}×{}]".format(width, height)
-        if k == 0:
-            keystr = "No key press detected..."[:width-1]
-
-        # Centering calculations
-        start_x_title = int((width // 2) - (len(title) // 2) - len(title) % 2)
-        start_x_subtitle = int((width // 2) - (len(subtitle) // 2) - len(subtitle) % 2)
-        start_x_keystr = int((width // 2) - (len(keystr) // 2) - len(keystr) % 2)
-        start_y = int((height // 2) - 2)
-
-        # Rendering some text
-        whstr = ""
-        stdscr.addstr(0, 0, whstr, curses.color_pair(1))
-
-        # Render status bar
-        stdscr.attron(curses.color_pair(3))
-        stdscr.addstr(height-1, 0, statusbarstr)
-        stdscr.addstr(height-1, len(statusbarstr), " " * (width - len(statusbarstr) - 1))
-        stdscr.attroff(curses.color_pair(3))
-
-        # Turning on attributes for title
-        stdscr.attron(curses.color_pair(2))
-        stdscr.attron(curses.A_BOLD)
-
-        # Rendering title
-        stdscr.addstr(start_y, start_x_title, title)
-
-        # Turning off attributes for title
-        stdscr.attroff(curses.color_pair(2))
-        stdscr.attroff(curses.A_BOLD)
-
-        # Print rest of text
-        stdscr.addstr(start_y + 1, start_x_subtitle, subtitle)
-        stdscr.addstr(start_y + 3, (width // 2) - 2, '-' * 4)
-        stdscr.addstr(start_y + 5, start_x_keystr, keystr)
-        stdscr.move(cursor_y, cursor_x)
-
-        # Refresh the screen
-        stdscr.refresh()
-
-        # Wait for next input
-        k = stdscr.getch()
-
-def main():
-    curses.wrapper(draw_menu)
-
-if __name__ == "__main__":
-    main()
+finally:
+    curses.endwin()
+    print("Final processing...")
+    servo.set_angle(90)
+    time.sleep(1)
+    servo.pwm_off()
+    print("Finish.")
