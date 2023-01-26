@@ -14,4 +14,4 @@ O_o
 * DBH-01B  
 
 ## Environment  
-* Ubuntu 20.04.2 TLS (Ubuntu Server 20.04.2 TLS)
+* Ubuntu 20.04.2 LTS (Ubuntu Server 20.04.2 LTS)
