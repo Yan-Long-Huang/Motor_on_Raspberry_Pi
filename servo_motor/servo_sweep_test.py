@@ -6,7 +6,7 @@ import sys,os
 """ Servo Motor """
 class Servo:
     def __init__(self,channel,pulse_min=150,pulse_max=600,angle_min=0,angle_max=180,reverse=False,freq=60):
-        self.__pwm = Adafruit_PCA9685.PCA9685()
+        self.__pwm = Adafruit_PCA9685.PCA9685(address=0x40, busnum=1)
         self.__pwm.set_pwm_freq(freq)
         self.__channel = channel
         self.__pulse_min = pulse_min
